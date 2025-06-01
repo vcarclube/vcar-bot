@@ -1,4 +1,5 @@
 const SocioModel = require('../models/socioModel');
+const AssinaturasAssasModel = require('../models/assinaturasAssasModel');
 const { enviarEmail } = require('../config/email');
 const { enviarWhatsApp } = require('../config/whatsapp');
 const { logger } = require('../utils/logger');
@@ -10,17 +11,57 @@ class CobrancaService {
     
     try {
 
-      const sociosAtrasados = await SocioModel.getSociosComPagamentoAtrasado(5);
-      logger.info(`Encontrados ${sociosAtrasados.length} sócios com pagamento atrasado.`);
       
-      for (const socio of sociosAtrasados) {
+      const sociosVeiculos = await SocioModel.getSociosVeiculos();
+
+      const BATCH_SIZE = 50;
+      const INTERVAL = 60000; // 60 segundos
+
+      const sleep = (ms) => {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      for (let i = 0; i < sociosVeiculos.length; i += BATCH_SIZE) {
+        const batch = sociosVeiculos.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (socioVeiculo) => {
+          try {
+            let cobrancas = await AssinaturasAssasModel.getAssinaturaCobrancaSocio(socioVeiculo);
+            if(cobrancas != null){
+
+              console.log(cobrancas)
+
+              //let pedingsCobs = cobrancas.filter(c => { return c.status == "CONFIRMED"});
+
+              //console.log(pedingsCobs);
+            }
+          } catch (error) {
+            console.error('Erro ao processar sócio:', socioVeiculo.id, error);
+          }
+        }));
+        console.log(`Batch ${i / BATCH_SIZE + 1} finalizado. Aguardando 1 minuto...`);
+        if (i + BATCH_SIZE < sociosVeiculos.length) {
+          await sleep(INTERVAL);
+        }
+      }
+
+      /*const sociosVeiculosAssinados = sociosVeiculos.filter(item => { return item.IdAsaas.includes("sub_")});
+
+      console.log(sociosVeiculos);
+      console.log(assinaturasAssas);
+
+      logger.info(`Encontrados ${sociosVeiculosAssinados.length} sócios assinantes com pagamento atrasado.`);
+      
+      for (const socio of sociosVeiculosAssinados) {
         await this.processarCobrancaSocio(socio);
         
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      logger.info('Processo de cobrança finalizado com sucesso.');
-      return { success: true, total: sociosAtrasados.length };
+      logger.info('Processo de cobrança finalizado com sucesso.');*/
+
+      //return { success: true, total: sociosVeiculosAssinados.length };
+      return { success: true, total: 0 };
+
     } catch (error) {
       logger.error('Erro durante o processo de cobrança:', error);
       return { success: false, error: error.message };
