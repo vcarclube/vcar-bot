@@ -7,8 +7,8 @@ class CobrancaJob {
   static initialize() {
     logger.info('Inicializando job de cobrança automatizada');
     
-    // Agenda para executar todos os dias às 10h da manhã
-    cron.schedule('* * * * *', async () => {
+    // Agenda para executar todos os dias entre 9h e 18h a cada 10 minutos
+    cron.schedule('*/10 9-18 * * *', async () => {
       logger.info('Executando job de cobrança automatizada');
       
       try {
